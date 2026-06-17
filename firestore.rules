@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 프로토타입: 로그인(익명 포함)한 사용자는 수용요청 읽기/쓰기 가능.
+    // 실제 운영 시에는 구급대원/병원 역할 검증 및 병원별 접근 제한으로 강화해야 합니다.
+    match /requests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // 병원 마스터 정보(시연용 시드 데이터)
+    match /hospitals/{hospitalId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,2 @@
+DATA_GO_KR_SERVICE_KEY=YOUR_DATA_GO_KR_SERVICE_KEY
+ALLOWED_ORIGINS=http://localhost:5000,http://127.0.0.1:5000,https://your-firebase-project.web.app

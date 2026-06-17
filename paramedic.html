@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구급대원용 · 응급실 수용요청</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --secondary-color: #457b9d;
+            --bg-color: #f1faee;
+            --text-color: #1d3557;
+            --card-bg: #ffffff;
+            --success: #2a9d8f;
+            --warning: #e9c46a;
+            --danger: #e76f51;
+            --muted: #6c757d;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        header { max-width: 1000px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+        header .htitle { min-width: 0; }
+        h1 { font-size: 1.6rem; color: var(--primary-color); margin: 0 0 5px; }
+        .sub { color: var(--muted); font-size: 0.95rem; }
+        .nav-btn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 18px; border-radius: 999px; background: var(--secondary-color); color: #fff; text-decoration: none; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 10px rgba(69,123,157,0.3); transition: transform .12s, box-shadow .12s; white-space: nowrap; }
+        .nav-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(69,123,157,0.4); }
+        .nav-btn .ni { font-size: 1.15rem; }
+        .layout { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .panel h2 { font-size: 1.1rem; margin: 0 0 15px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin: 10px 0 4px; }
+        input, select, textarea {
+            width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; outline: none; font-family: inherit;
+        }
+        textarea { resize: vertical; min-height: 60px; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        button { padding: 10px 16px; border-radius: 8px; border: none; background: var(--secondary-color); color: #fff; cursor: pointer; font-size: 0.95rem; }
+        button:hover { opacity: 0.92; }
+        button.primary { background: var(--primary-color); width: 100%; margin-top: 16px; font-size: 1.05rem; font-weight: bold; padding: 14px; }
+        button.ghost { background: #eef2f5; color: var(--text-color); }
+        button.small { padding: 4px 9px; font-size: 0.8rem; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .hospital-pick { display: flex; justify-content: space-between; align-items: center; padding: 9px 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; }
+        .hospital-pick small { color: var(--muted); }
+        .lv { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; color: #fff; vertical-align: middle; margin-left: 4px; }
+        .lv-3 { background: var(--primary-color); }
+        .lv-2 { background: var(--secondary-color); }
+        .lv-1 { background: var(--muted); }
+        .queue-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: #f7fafc; margin-bottom: 6px; }
+        .rank-badge { background: var(--secondary-color); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; flex-shrink: 0; }
+        .queue-item .qname { flex: 1; font-weight: 600; }
+        .ref { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+        .vitals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .vitals .vlabel { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
+        .vitals input { padding: 7px 8px; font-size: 0.9rem; }
+        .bed-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; }
+        .bed-row .bn { font-weight: 600; font-size: 0.92rem; }
+        .bed-row .bc { font-weight: 800; font-size: 1.05rem; }
+        .bed-row.b-green .bc { color: var(--success); }
+        .bed-row.b-yellow .bc { color: #c79100; }
+        .bed-row.b-red .bc { color: var(--danger); }
+        .bed-row.b-gray .bc { color: var(--muted); font-weight: 600; }
+        @media (max-width: 800px) { .vitals { grid-template-columns: repeat(2, 1fr); } }
+        /* 실시간 응답 추적 */
+        .track-item { padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid #ddd; background: #fff; }
+        .track-item.pending { border-left-color: var(--warning); background: #fffbf0; }
+        .track-item.asking { border-left-color: var(--secondary-color); background: #eef6fb; animation: pulse 1.2s infinite; }
+        .track-item.accepted { border-left-color: var(--success); background: #eafaf6; }
+        .track-item.rejected { border-left-color: var(--danger); background: #fdeee9; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.65;} }
+        .track-head { display: flex; justify-content: space-between; align-items: center; }
+        .track-head b { font-size: 1rem; }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; color: #fff; }
+        .badge.pending { background: var(--warning); color:#333; }
+        .badge.asking { background: var(--secondary-color); }
+        .badge.accepted { background: var(--success); }
+        .badge.rejected { background: var(--danger); }
+        .reason { margin-top: 6px; font-size: 0.88rem; color: #b3402a; }
+        .result-banner { padding: 16px; border-radius: 10px; text-align: center; font-size: 1.15rem; font-weight: bold; margin-bottom: 14px; }
+        .result-banner.accepted { background: var(--success); color: #fff; }
+        .result-banner.exhausted { background: var(--danger); color: #fff; }
+        .hidden { display: none; }
+        a.nav { color: var(--secondary-color); text-decoration: none; font-size: 0.9rem; }
+        @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="htitle">
+            <h1>🚑 구급대원용 · 응급실 수용요청</h1>
+            <div class="sub">현장 환자평가 후 병원 순위를 지정해 수용요청을 보냅니다.</div>
+        </div>
+        <a class="nav-btn" href="index.html"><span class="ni">🛏️</span> 실시간 병상 현황</a>
+    </header>
+
+    <div class="layout">
+        <!-- 좌: 요청 작성 -->
+        <div id="compose-col">
+            <div class="panel">
+                <h2>1. 환자 평가</h2>
+                <div class="row">
+                    <div>
+                        <label>증상 분류</label>
+                        <select id="symptom">
+                            <option>흉통</option>
+                            <option>의식장애</option>
+                            <option>호흡곤란</option>
+                            <option>심정지</option>
+                            <option>중증외상</option>
+                            <option>뇌졸중 의심</option>
+                            <option>복통</option>
+                            <option>고열</option>
+                            <option>기타</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>KTAS 등급</label>
+                        <select id="ktas">
+                            <option value="1">KTAS 1 · 소생(즉시)</option>
+                            <option value="2">KTAS 2 · 긴급</option>
+                            <option value="3" selected>KTAS 3 · 응급</option>
+                            <option value="4">KTAS 4 · 준응급</option>
+                            <option value="5">KTAS 5 · 비응급</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>연령</label>
+                        <input id="age" type="number" min="0" max="120" placeholder="예: 67">
+                    </div>
+                    <div>
+                        <label>성별</label>
+                        <select id="gender"><option>남</option><option>여</option></select>
+                    </div>
+                    <div>
+                        <label>의식수준</label>
+                        <select id="consciousness"><option>명료(A)</option><option>음성(V)</option><option>통증(P)</option><option>무반응(U)</option></select>
+                    </div>
+                </div>
+                <label>바이탈 사인</label>
+                <div class="vitals">
+                    <div><span class="vlabel">혈압(mmHg)</span><input id="v-bp" type="text" placeholder="120/80"></div>
+                    <div><span class="vlabel">맥박(회/분)</span><input id="v-pulse" type="number" min="0" placeholder="78"></div>
+                    <div><span class="vlabel">SpO₂(%)</span><input id="v-spo2" type="number" min="0" max="100" placeholder="98"></div>
+                    <div><span class="vlabel">체온(℃)</span><input id="v-temp" type="number" step="0.1" placeholder="36.5"></div>
+                    <div><span class="vlabel">혈당(mg/dL)</span><input id="v-glucose" type="number" min="0" placeholder="110"></div>
+                </div>
+
+                <label>현장 위치 / 메모</label>
+                <textarea id="memo" placeholder="예: 종로구 ○○동, 흉통 30분 지속, 식은땀 동반"></textarea>
+            </div>
+
+            <div class="panel" style="margin-top:16px;">
+                <h2>실시간 응급실 병상</h2>
+                <div class="row">
+                    <div>
+                        <label>지역(시도)</label>
+                        <select id="bed-sido">
+                            <option value="서울특별시">서울특별시</option>
+                            <option value="부산광역시">부산광역시</option>
+                            <option value="대구광역시">대구광역시</option>
+                            <option value="인천광역시">인천광역시</option>
+                            <option value="광주광역시">광주광역시</option>
+                            <option value="대전광역시">대전광역시</option>
+                            <option value="울산광역시">울산광역시</option>
+                            <option value="세종특별자치시">세종특별자치시</option>
+                            <option value="경기도">경기도</option>
+                            <option value="강원도">강원도</option>
+                            <option value="충청북도">충청북도</option>
+                            <option value="충청남도">충청남도</option>
+                            <option value="전라북도">전라북도</option>
+                            <option value="전라남도">전라남도</option>
+                            <option value="경상북도">경상북도</option>
+                            <option value="경상남도">경상남도</option>
+                            <option value="제주특별자치도">제주특별자치도</option>
+                        </select>
+                    </div>
+                    <div id="bed-kwonyeok-wrap">
+                        <label>서울 권역</label>
+                        <select id="bed-kwonyeok">
+                            <option value="">서울 전체</option>
+                            <option value="1">1권역 (서북권: 종로·중구·용산·은평·마포·서대문)</option>
+                            <option value="2">2권역 (동북권: 노원·동대문·중랑·성북·강북·도봉)</option>
+                            <option value="3">3권역 (서남권: 양천·강서·구로·금천·영등포·동작·관악)</option>
+                            <option value="4">4권역 (동남권: 서초·강남·송파·강동·성동·광진)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:flex-end;">
+                        <button id="bed-refresh" class="ghost" style="width:100%;">병상 새로고침</button>
+                    </div>
+                </div>
+                <div id="bed-list" style="margin-top:10px; max-height:280px; overflow-y:auto;"><div class="ref">병상 정보를 불러오는 중...</div></div>
+            </div>
+
+            <div class="panel" style="margin-top:16px;">
+                <h2>2. 병원 순위 지정</h2>
+                <div class="ref">위 <b>지역(시도)</b>에 해당하는 실시간 응급실 병원이 표시됩니다. 누르면 순위에 추가됩니다. (가용 병상 많은 순 정렬)</div>
+                <div id="hospital-list" style="margin-top:10px;"></div>
+
+                <h2 style="margin-top:18px;">지정된 순위</h2>
+                <div id="queue-list"><div class="ref">아직 선택된 병원이 없습니다.</div></div>
+
+                <button class="primary" id="send-btn" disabled>수용요청 전송</button>
+            </div>
+        </div>
+
+        <!-- 우: 실시간 추적 -->
+        <div class="panel" id="track-col">
+            <h2>실시간 수용요청 현황</h2>
+            <div id="track-empty" class="ref">왼쪽에서 요청을 전송하면 여기에 병원별 응답이 실시간으로 표시됩니다.</div>
+            <div id="result-area"></div>
+            <div id="track-list"></div>
+        </div>
+    </div>
+
+    <script type="module" src="app/paramedic.js?v=3"></script>
+</body>
+</html>

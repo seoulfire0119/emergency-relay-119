@@ -1,0 +1,7 @@
+name = "emergency-bed-proxy"
+main = "src/index.js"
+compatibility_date = "2026-06-04"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://emergency-145fe.web.app,https://emergency-145fe.firebaseapp.com,https://class101-c0973.web.app,https://class101-c0973.firebaseapp.com,http://localhost:5000,http://127.0.0.1:5000,http://localhost:8787"

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전국 응급의료 실시간 정보</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --secondary-color: #457b9d;
+            --bg-color: #f1faee;
+            --text-color: #1d3557;
+            --card-bg: #ffffff;
+            --success: #2a9d8f;
+            --warning: #e9c46a;
+            --danger: #e76f51;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            max-width: 1000px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        select, button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.back-btn {
+            background-color: #6c757d;
+        }
+
+        #sync-time {
+            font-size: 0.9rem;
+            color: #666;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .hospital-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-top: 5px solid #ddd;
+            transition: transform 0.2s;
+        }
+
+        .hospital-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .hospital-card.status-green { border-top-color: var(--success); }
+        .hospital-card.status-yellow { border-top-color: var(--warning); }
+        .hospital-card.status-red { border-top-color: var(--danger); }
+
+        .hospital-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .bed-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .bed-count {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-green .status-badge { background-color: var(--success); }
+        .status-yellow .status-badge { background-color: var(--warning); color: #333; }
+        .status-red .status-badge { background-color: var(--danger); }
+
+        .contact-info {
+            font-size: 0.9rem;
+            color: #555;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .contact-info a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            grid-column: 1 / -1;
+            padding: 50px;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            h1 { font-size: 1.5rem; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav style="max-width:1000px;margin:0 auto 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <span style="font-weight:bold;color:#1d3557;">바로가기:</span>
+        <a href="paramedic.html" style="text-decoration:none;background:#e63946;color:#fff;padding:8px 14px;border-radius:8px;font-size:0.95rem;">🚑 구급대원용</a>
+        <a href="hospital.html" style="text-decoration:none;background:#457b9d;color:#fff;padding:8px 14px;border-radius:8px;font-size:0.95rem;">🏥 병원용</a>
+    </nav>
+    <header>
+        <h1>🚑 응급의료 실시간 정보</h1>
+        <div class="controls">
+            <select id="sido-select">
+                <option value="">시도 전체</option>
+                <option value="서울특별시">서울특별시</option>
+                <option value="부산광역시">부산광역시</option>
+                <option value="대구광역시">대구광역시</option>
+                <option value="인천광역시">인천광역시</option>
+                <option value="광주광역시">광주광역시</option>
+                <option value="대전광역시">대전광역시</option>
+                <option value="울산광역시">울산광역시</option>
+                <option value="세종특별자치시">세종특별자치시</option>
+                <option value="경기도">경기도</option>
+                <option value="강원도">강원도</option>
+                <option value="충청북도">충청북도</option>
+                <option value="충청남도">충청남도</option>
+                <option value="전라북도">전라북도</option>
+                <option value="전라남도">전라남도</option>
+                <option value="경상북도">경상북도</option>
+                <option value="경상남도">경상남도</option>
+                <option value="제주특별자치도">제주특별자치도</option>
+            </select>
+            <select id="kwonyeok-select" style="display: none;">
+                <option value="">서울 전체 권역</option>
+                <option value="1">1권역 (서북권: 종로, 중구, 용산, 은평, 마포, 서대문)</option>
+                <option value="2">2권역 (동북권: 노원, 동대문, 중랑, 성북, 강북, 도봉)</option>
+                <option value="3">3권역 (서남권: 양천, 강서, 구로, 금천, 영등포, 동작, 관악)</option>
+                <option value="4">4권역 (동남권: 서초, 강남, 송파, 강동, 성동, 광진)</option>
+            </select>
+            <button id="refresh-btn">새로고침</button>
+        </div>
+        <div id="sync-time">업데이트 시간: -</div>
+    </header>
+
+    <main class="dashboard-grid" id="hospital-container">
+        <!-- 병원 카드가 여기에 동적으로 추가됩니다 -->
+        <div class="loading">데이터를 불러오는 중입니다...</div>
+    </main>
+
+    <script src="emergency.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>병원용 · 수용요청 수신</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --secondary-color: #457b9d;
+            --bg-color: #f1faee;
+            --text-color: #1d3557;
+            --card-bg: #ffffff;
+            --success: #2a9d8f;
+            --warning: #e9c46a;
+            --danger: #e76f51;
+            --muted: #6c757d;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        header { max-width: 760px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        h1 { font-size: 1.6rem; color: var(--secondary-color); margin: 0; }
+        select, button { padding: 9px 13px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; font-family: inherit; }
+        button { background: var(--secondary-color); color: #fff; border: none; cursor: pointer; }
+        button:hover { opacity: 0.92; }
+        .wrap { max-width: 760px; margin: 0 auto; }
+        .me-bar { background: var(--card-bg); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .me-bar b { color: var(--secondary-color); }
+        .req-card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.08); margin-bottom: 18px; border-top: 6px solid var(--primary-color); }
+        .req-card.alarm { animation: flash 1s ease-in-out 3; }
+        @keyframes flash { 0%,100%{box-shadow:0 6px 14px rgba(0,0,0,0.08);} 50%{box-shadow:0 0 0 4px var(--primary-color);} }
+        .req-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .sev { padding: 4px 12px; border-radius: 20px; font-weight: bold; color: #fff; font-size: 0.9rem; }
+        .sev.응급 { background: var(--danger); }
+        .sev.준응급 { background: var(--warning); color: #333; }
+        .sev.잠재응급 { background: var(--success); }
+        .pinfo { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-size: 0.95rem; margin-bottom: 12px; }
+        .pinfo .k { color: var(--muted); font-size: 0.8rem; }
+        .vitals-view { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px 12px; background: #f0f6fb; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.92rem; font-weight: 600; }
+        .vitals-view .k { color: var(--muted); font-size: 0.75rem; font-weight: normal; margin-bottom: 2px; }
+        @media (max-width: 600px) { .vitals-view { grid-template-columns: repeat(3, 1fr); } }
+        .memo { background: #f7fafc; border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; margin-bottom: 12px; }
+        .prior { border-left: 4px solid var(--danger); background: #fdeee9; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; }
+        .prior h4 { margin: 0 0 6px; font-size: 0.88rem; color: #b3402a; }
+        .prior div { font-size: 0.87rem; margin: 3px 0; }
+        .rank-note { font-size: 0.85rem; color: var(--muted); margin-bottom: 12px; }
+        .actions { display: flex; gap: 10px; }
+        .actions button { flex: 1; padding: 13px; font-size: 1rem; font-weight: bold; }
+        .accept { background: var(--success); }
+        .reject { background: var(--danger); }
+        .reject-form { margin-top: 12px; display: none; }
+        .reject-form.open { display: block; }
+        .reject-form input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 8px; }
+        .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .quick button { background: #eef2f5; color: var(--text-color); padding: 5px 10px; font-size: 0.82rem; font-weight: normal; }
+        .empty { text-align: center; color: var(--muted); padding: 50px 20px; background: var(--card-bg); border-radius: 12px; }
+        a.nav { color: var(--secondary-color); text-decoration: none; font-size: 0.9rem; }
+        .nav-btn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 18px; border-radius: 999px; background: var(--primary-color); color: #fff; text-decoration: none; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 10px rgba(230,57,70,0.3); transition: transform .12s, box-shadow .12s; white-space: nowrap; }
+        .nav-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(230,57,70,0.4); }
+        .nav-btn .ni { font-size: 1.15rem; }
+        .ref { font-size: 0.85rem; color: var(--muted); }
+        /* 이력 */
+        .hist-section { margin-top: 26px; }
+        .hist-title { font-size: 1.15rem; color: var(--text-color); margin: 0 0 12px; }
+        .hist-cnt { font-size: 0.85rem; color: var(--muted); font-weight: normal; }
+        .hist-item { background: var(--card-bg); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); border-left: 5px solid #ddd; }
+        .hist-item.h-accept { border-left-color: var(--success); }
+        .hist-item.h-reject { border-left-color: var(--danger); }
+        .hist-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .hist-sym { font-weight: 700; font-size: 1rem; }
+        .ktas-chip { padding: 2px 9px; border-radius: 12px; font-size: 0.78rem; font-weight: bold; color: #fff; }
+        .dec { margin-left: auto; padding: 3px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: bold; color: #fff; }
+        .dec-accept { background: var(--success); }
+        .dec-reject { background: var(--danger); }
+        .hist-meta { font-size: 0.83rem; color: var(--muted); margin-top: 6px; }
+        .hist-reason { font-size: 0.86rem; color: #b3402a; margin-top: 5px; }
+        .hist-outcome { font-size: 0.84rem; margin-top: 7px; font-weight: 600; }
+        .hist-outcome.o-accepted { color: var(--success); }
+        .hist-outcome.o-exhausted { color: var(--danger); }
+        .hist-outcome.o-other { color: var(--secondary-color); }
+        .hist-outcome.o-pending { color: var(--muted); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏥 병원용 · 수용요청 수신</h1>
+        <a class="nav-btn" href="index.html"><span class="ni">🛏️</span> 실시간 병상 현황</a>
+    </header>
+    <div class="wrap">
+        <div class="me-bar">
+            <span>지역:</span>
+            <select id="hospital-sido"></select>
+            <span>병원:</span>
+            <select id="hospital-select"></select>
+            <b id="me-name"></b>
+            <span id="status" style="margin-left:auto; font-size:0.85rem; color:var(--muted);"></span>
+        </div>
+        <div id="requests"></div>
+
+        <div class="hist-section">
+            <h2 class="hist-title">📋 우리 병원 수용요청 이력 <span id="history-count" class="hist-cnt"></span></h2>
+            <div id="history"><div class="ref">불러오는 중...</div></div>
+        </div>
+    </div>
+
+    <audio id="alarm-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ==" type="audio/wav">
+    </audio>
+    <script type="module" src="app/hospital.js?v=4"></script>
+</body>
+</html>
