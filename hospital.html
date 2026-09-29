@@ -27,7 +27,7 @@
         .me-bar { background: var(--card-bg); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .me-bar b { color: var(--secondary-color); }
         .req-card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.08); margin-bottom: 18px; border-top: 6px solid var(--primary-color); }
-        .req-card.alarm { animation: flash 1s ease-in-out 3; }
+        .req-card.alarm { animation: flash 1s ease-in-out infinite; } /* 알람 확인 전까지 계속 */
         @keyframes flash { 0%,100%{box-shadow:0 6px 14px rgba(0,0,0,0.08);} 50%{box-shadow:0 0 0 4px var(--primary-color);} }
         .req-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .sev { padding: 4px 12px; border-radius: 20px; font-weight: bold; color: #fff; font-size: 0.9rem; }
@@ -79,6 +79,22 @@
         .hist-outcome.o-exhausted { color: var(--danger); }
         .hist-outcome.o-other { color: var(--secondary-color); }
         .hist-outcome.o-pending { color: var(--muted); }
+        .hist-item.h-timeout { border-left-color: #adb5bd; }
+        .dec-timeout { background: #868e96; }
+        .hidden { display: none !important; }
+        #hospital-pin { padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; width: 150px; }
+        .ghost-btn { background: #eef2f5; color: var(--text-color); }
+        .alarm-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: #fff3cd; border: 1px solid #f0d58a; color: #7a5a00; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.9rem; }
+        .alarm-banner button { background: #e9a800; font-weight: 700; }
+        .deadline { font-size: 0.85rem; font-weight: 700; color: var(--secondary-color); margin: -6px 0 12px; }
+        .deadline.urgent { color: var(--danger); }
+        .ack-btn { width: 100%; margin-bottom: 10px; background: #fff3cd; color: #7a5a00; font-weight: 700; }
+        .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .stat { background: var(--card-bg); border-radius: 10px; padding: 10px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .stat .sv { font-size: 1.3rem; font-weight: 800; }
+        .stat .sk { font-size: 0.78rem; color: var(--muted); }
+        .stat.wide { grid-column: 1 / -1; font-size: 0.9rem; }
+        @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, 1fr); } }
     </style>
 </head>
 <body>
@@ -87,25 +103,35 @@
         <a class="nav-btn" href="index.html"><span class="ni">🛏️</span> 실시간 병상 현황</a>
     </header>
     <div class="wrap">
-        <div class="me-bar">
+        <!-- 병원 인증: 병원 선택 + 인증코드 -->
+        <div class="me-bar" id="login-bar">
             <span>지역:</span>
             <select id="hospital-sido"></select>
             <span>병원:</span>
             <select id="hospital-select"></select>
-            <b id="me-name"></b>
+            <input id="hospital-pin" type="password" placeholder="병원 인증코드" autocomplete="off">
+            <button id="login-btn">인증하고 수신 시작</button>
+            <div id="login-msg" class="ref" style="width:100%;"></div>
+        </div>
+        <div class="me-bar hidden" id="me-bar">
+            <span>🏥 <b id="me-name"></b> 수신 중</span>
+            <button id="logout-btn" class="ghost-btn">병원 변경</button>
             <span id="status" style="margin-left:auto; font-size:0.85rem; color:var(--muted);"></span>
+        </div>
+        <div id="alarm-banner" class="alarm-banner hidden">
+            <span>🔕 알람 소리가 꺼져 있습니다. 브라우저 정책상 화면을 한 번 눌러야 소리가 납니다.</span>
+            <button id="alarm-enable">🔔 알람 켜기</button>
         </div>
         <div id="requests"></div>
 
         <div class="hist-section">
-            <h2 class="hist-title">📋 우리 병원 수용요청 이력 <span id="history-count" class="hist-cnt"></span></h2>
+            <h2 class="hist-title">📊 우리 병원 응답 현황 <span class="hist-cnt">(최근 100건 기준)</span></h2>
+            <div id="stats" class="stats"></div>
+            <h2 class="hist-title" style="margin-top:20px;">📋 우리 병원 수용요청 이력 <span id="history-count" class="hist-cnt"></span></h2>
             <div id="history"><div class="ref">불러오는 중...</div></div>
         </div>
     </div>
 
-    <audio id="alarm-sound" preload="auto">
-        <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ==" type="audio/wav">
-    </audio>
-    <script type="module" src="app/hospital.js?v=4"></script>
+    <script type="module" src="app/hospital.js?v=6"></script>
 </body>
 </html>

@@ -1,16 +1,77 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 프로토타입: 로그인(익명 포함)한 사용자는 수용요청 읽기/쓰기 가능.
-    // 실제 운영 시에는 구급대원/병원 역할 검증 및 병원별 접근 제한으로 강화해야 합니다.
-    match /requests/{requestId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if false;
+
+    function signedIn() { return request.auth != null; }
+    function sessionPath() { return /databases/$(database)/documents/hospitalSessions/$(request.auth.uid); }
+    // 인증코드로 들어온 병원 기기인가
+    function isHospital() { return signedIn() && exists(sessionPath()); }
+    function myHpid() { return get(sessionPath()).data.hpid; }
+    function pinPath(id) { return /databases/$(database)/documents/hospitalPins/$(id); }
+
+    // 병원 인증코드 — 관리자만(콘솔) 넣는다. 앱은 읽지도 쓰지도 못하고, 아래 규칙만 비교에 쓴다.
+    //   hospitalPins/{hpid}  { pin: "…" }  병원별 코드
+    //   hospitalPins/_demo   { pin: "…" }  시연용 공통 코드 — 운영 전 지울 것
+    match /hospitalPins/{hpid} {
+      allow read, write: if false;
     }
 
-    // 병원 마스터 정보(시연용 시드 데이터)
+    // 병원 기기 세션 — 「이 익명 사용자 = 이 병원」. 코드가 맞아야만 만들 수 있다.
+    match /hospitalSessions/{uid} {
+      function pinOk(data) {
+        return (exists(pinPath(data.hpid)) && get(pinPath(data.hpid)).data.pin == data.pin)
+            || (exists(pinPath('_demo')) && get(pinPath('_demo')).data.pin == data.pin);
+      }
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['hpid', 'name', 'pin', 'at'])
+        && request.resource.data.hpid is string
+        && request.resource.data.pin is string
+        && pinOk(request.resource.data);
+    }
+
+    // 수용요청 — 만든 구급대원, 지금 차례인 병원, 이미 응답한 병원만 볼 수 있다.
+    match /requests/{requestId} {
+      function isCreator() { return signedIn() && resource.data.get('createdBy', '') == request.auth.uid; }
+      function isTargetHospital() { return isHospital() && resource.data.get('currentHospitalId', null) == myHpid(); }
+      function respondedBefore() { return isHospital() && myHpid() in resource.data.get('respondedHospitalIds', []); }
+
+      allow read: if isCreator() || isTargetHospital() || respondedBefore();
+
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.currentRank == 0
+        && request.resource.data.responses.size() == 0
+        && request.resource.data.respondedHospitalIds.size() == 0
+        && request.resource.data.hospitalQueue.size() > 0
+        && request.resource.data.hospitalQueue.size() <= 30
+        && request.resource.data.currentHospitalId == request.resource.data.hospitalQueue[0].hospitalId
+        && request.resource.data.expiresAt is timestamp;
+
+      // 구급대원: 무응답 넘김·병원 추가·취소·도착 예정/도착. 환자 정보와 수용 결정은 못 바꾼다.
+      allow update: if isCreator()
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.patient == resource.data.patient
+        && request.resource.data.expiresAt == resource.data.expiresAt
+        && request.resource.data.get('acceptedHospitalId', null) == resource.data.get('acceptedHospitalId', null)
+        && request.resource.data.status in ['pending', 'accepted', 'exhausted', 'cancelled']
+        && (request.resource.data.status != 'accepted' || resource.data.status == 'accepted');
+
+      // 병원: 자기 차례인 대기 요청에만 수용/거절. 정해진 칸만 바꿀 수 있다.
+      allow update: if isTargetHospital()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'currentRank', 'currentHospitalId', 'acceptedHospitalId',
+             'responses', 'respondedHospitalIds', 'askedAt', 'deadlineAt', 'updatedAt'])
+        && myHpid() in request.resource.data.respondedHospitalIds
+        && request.resource.data.status in ['pending', 'accepted', 'exhausted']
+        && (request.resource.data.status != 'accepted' || request.resource.data.acceptedHospitalId == myHpid());
+
+      allow delete: if isCreator();
+    }
+
+    // 병원 마스터 정보(구버전 시연용 시드 데이터)
     match /hospitals/{hospitalId} {
       allow read: if request.auth != null;
       allow write: if false;

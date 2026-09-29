@@ -136,6 +136,21 @@
         .status-yellow .status-badge { background-color: var(--warning); color: #333; }
         .status-red .status-badge { background-color: var(--danger); }
 
+        /* 과밀(가용병상 음수) — 만석보다 더 진하게. 확인불가(값 없음) — 회색 */
+        .hospital-card.status-over { border-top-color: #9b1d20; }
+        .status-over .status-badge { background-color: #9b1d20; }
+        .status-over .bed-count { color: #9b1d20; font-size: 1.2rem; }
+        .hospital-card.status-gray { border-top-color: #adb5bd; }
+        .status-gray .status-badge { background-color: #adb5bd; }
+        .status-gray .bed-count { color: #6c757d; }
+
+        .res-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        .res-chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: #eef2f5; color: #495057; }
+        .res-chip.ok { background: #e3f5f1; color: #1f7a6f; }
+        .res-chip.no { background: #fbe9e5; color: #b3402a; }
+        .updated { font-size: 0.78rem; color: #6c757d; margin-bottom: 10px; }
+        .updated.stale { color: #b3402a; font-weight: 600; }
+
         .contact-info {
             font-size: 0.9rem;
             color: #555;
@@ -202,6 +217,7 @@
             <button id="refresh-btn">새로고침</button>
         </div>
         <div id="sync-time">업데이트 시간: -</div>
+        <div style="font-size:0.8rem;color:#6c757d;width:100%;">가용병상이 음수면 <b style="color:#9b1d20;">과밀</b> — 병상보다 환자가 그만큼 더 있다는 뜻입니다. 값이 없으면 <b>확인불가</b>.</div>
     </header>
 
     <main class="dashboard-grid" id="hospital-container">
@@ -209,6 +225,6 @@
         <div class="loading">데이터를 불러오는 중입니다...</div>
     </main>
 
-    <script src="emergency.js" defer></script>
+    <script type="module" src="emergency.js?v=2"></script>
 </body>
 </html>

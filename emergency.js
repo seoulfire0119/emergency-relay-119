@@ -1,10 +1,8 @@
-const WORKER_API_ENDPOINT = 'https://emergency-bed-proxy.emergency-145fe.workers.dev/api/emergency-beds';
-const LOCAL_WORKER_API_ENDPOINT = 'http://localhost:8787/api/emergency-beds';
-const SEOUL = '서울특별시';
+// 실시간 응급실 병상 현황 (index.html)
+import { fetchBeds } from './app/beds.js?v=4';
+import { bedState, bedSortValue, resourceChips, updatedInfo } from './app/bedstatus.js?v=1';
 
-const API_ENDPOINT = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-    ? LOCAL_WORKER_API_ENDPOINT
-    : WORKER_API_ENDPOINT;
+const SEOUL = '서울특별시';
 
 const hospitalContainer = document.getElementById('hospital-container');
 const sidoSelect = document.getElementById('sido-select');
@@ -20,11 +18,10 @@ const kwonyeokMap = {
     "4": ['서초구', '강남구', '송파구', '강동구', '성동구', '광진구']
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    sidoSelect.value = SEOUL;
-    kwonyeokSelect.style.display = 'inline-block';
-    fetchHospitalData(SEOUL);
-});
+// 모듈 스크립트는 문서 해석이 끝난 뒤 실행되므로 바로 시작한다
+sidoSelect.value = SEOUL;
+kwonyeokSelect.style.display = 'inline-block';
+fetchHospitalData(SEOUL);
 
 sidoSelect.addEventListener('change', (e) => {
     const isSeoul = e.target.value === SEOUL;
@@ -41,157 +38,104 @@ refreshBtn.addEventListener('click', () => {
     fetchHospitalData(sidoSelect.value);
 });
 
-function assertWorkerEndpointConfigured() {
-    if (API_ENDPOINT.includes('YOUR_WORKERS_SUBDOMAIN')) {
-        throw new Error('Cloudflare Worker 배포 후 emergency.js의 WORKER_API_ENDPOINT를 실제 workers.dev 주소로 바꿔주세요.');
-    }
-}
-
-function buildEmergencyBedsUrl({ sido = '', gu = '', numOfRows = 1000 } = {}) {
-    const params = new URLSearchParams();
-    if (sido) params.set('sido', sido);
-    if (gu) params.set('gu', gu);
-    params.set('numOfRows', String(numOfRows));
-
-    return `${API_ENDPOINT}?${params.toString()}`;
-}
-
-async function fetchWithTimeout(url, timeoutMs = 20000) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        return await fetch(url, {
-            signal: controller.signal,
-            cache: 'no-store'
-        });
-    } finally {
-        clearTimeout(timeoutId);
-    }
-}
-
-async function fetchItems({ sido = '', gu = '', numOfRows = 1000 } = {}) {
-    assertWorkerEndpointConfigured();
-
-    const response = await fetchWithTimeout(buildEmergencyBedsUrl({ sido, gu, numOfRows }));
-    const xmlText = await response.text();
-
-    if (!response.ok) {
-        throw new Error(xmlText || `데이터 요청 실패 (${response.status})`);
-    }
-
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-
-    if (xmlDoc.querySelector('parsererror')) {
-        throw new Error('공공데이터 응답 XML을 해석할 수 없습니다.');
-    }
-
-    const resultCode = xmlDoc.getElementsByTagName('resultCode')[0]?.textContent;
-    const resultMsg = xmlDoc.getElementsByTagName('resultMsg')[0]?.textContent;
-
-    if (resultCode && !['00', 'INFO-000'].includes(resultCode)) {
-        throw new Error(resultMsg ? `${resultMsg} (${resultCode})` : `공공데이터 오류 (${resultCode})`);
-    }
-
-    return Array.from(xmlDoc.getElementsByTagName('item'));
-}
-
-async function fetchByGu(sido, gu) {
-    return fetchItems({ sido, gu, numOfRows: 100 });
-}
-
 async function fetchHospitalData(sido = '') {
     try {
         hospitalContainer.innerHTML = '<div class="loading">데이터를 불러오는 중입니다...</div>';
         const selectedKwonyeok = kwonyeokSelect.value;
-        let allItems = [];
+        let beds;
 
         if (sido === SEOUL && selectedKwonyeok) {
+            // 구별 조회를 한꺼번에 — 하나씩 기다리면 권역 하나에 몇 초씩 걸렸다
             const gus = kwonyeokMap[selectedKwonyeok] || [];
-
-            for (const gu of gus) {
-                const items = await fetchByGu(sido, gu);
-                allItems = allItems.concat(items);
-            }
+            const results = await Promise.all(gus.map((gu) => fetchBeds({ sido, gu, numOfRows: 100 })));
+            beds = results.flat();
         } else {
-            allItems = await fetchItems({ sido, numOfRows: 1000 });
+            beds = await fetchBeds({ sido, numOfRows: 1000 });
         }
 
-        renderHospitals(allItems);
+        renderHospitals(beds);
 
         const now = new Date();
-        syncTimeDisplay.textContent = `마지막 업데이트: ${now.toLocaleTimeString('ko-KR')} (병원 수: ${allItems.length}개)`;
+        syncTimeDisplay.textContent = `마지막 업데이트: ${now.toLocaleTimeString('ko-KR')} (병원 수: ${beds.length}개)`;
     } catch (error) {
         console.error('Error:', error);
-        hospitalContainer.innerHTML = `<div class="loading" style="color: red;">오류 발생: ${error.message}</div>`;
+        hospitalContainer.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'loading';
+        div.style.color = 'red';
+        div.textContent = `오류 발생: ${error.message}`;
+        hospitalContainer.appendChild(div);
     }
 }
 
-function renderHospitals(items) {
+const STATE_CLASS = { ok: 'status-green', low: 'status-yellow', full: 'status-red', over: 'status-over', unknown: 'status-gray' };
+
+function renderHospitals(beds) {
     hospitalContainer.innerHTML = '';
 
-    if (items.length === 0) {
+    if (beds.length === 0) {
         hospitalContainer.innerHTML = '<div class="loading">검색된 병원이 없습니다.</div>';
         return;
     }
 
-    items.forEach(item => {
-        const dutyName = item.getElementsByTagName('dutyName')[0]?.textContent || '이름 없음';
-        const hvec = parseInt(item.getElementsByTagName('hvec')[0]?.textContent || '0', 10);
-        const dutyTel3 = item.getElementsByTagName('dutyTel3')[0]?.textContent || '';
-
-        let statusClass = 'status-green';
-        let statusText = '여유';
-
-        if (hvec <= 0) {
-            statusClass = 'status-red';
-            statusText = '만석/확인불가';
-        } else if (hvec < 5) {
-            statusClass = 'status-yellow';
-            statusText = '주의';
-        }
+    [...beds].sort((a, b) => bedSortValue(b.hvec) - bedSortValue(a.hvec)).forEach((b) => {
+        const st = bedState(b.hvec);
 
         const card = document.createElement('div');
-        card.className = `hospital-card ${statusClass}`;
+        card.className = `hospital-card ${STATE_CLASS[st.key]}`;
 
         const name = document.createElement('span');
         name.className = 'hospital-name';
-        name.textContent = dutyName;
+        name.textContent = b.name;
 
         const bedInfo = document.createElement('div');
         bedInfo.className = 'bed-info';
 
         const bedCount = document.createElement('div');
         bedCount.className = 'bed-count';
-        bedCount.append(String(hvec), ' ');
-
-        const bedLabel = document.createElement('small');
-        bedLabel.style.fontSize = '0.9rem';
-        bedLabel.style.fontWeight = 'normal';
-        bedLabel.textContent = '병상';
-        bedCount.appendChild(bedLabel);
+        bedCount.textContent = st.text;
 
         const statusBadge = document.createElement('span');
         statusBadge.className = 'status-badge';
-        statusBadge.textContent = statusText;
+        statusBadge.textContent = st.label;
 
         bedInfo.append(bedCount, statusBadge);
+        card.append(name, bedInfo);
+
+        const chips = resourceChips(b.res);
+        if (chips.length) {
+            const res = document.createElement('div');
+            res.className = 'res-chips';
+            chips.forEach((c) => {
+                const chip = document.createElement('span');
+                chip.className = `res-chip ${c.ok === true ? 'ok' : c.ok === false ? 'no' : ''}`;
+                chip.textContent = `${c.label} ${c.text}`;
+                res.appendChild(chip);
+            });
+            card.appendChild(res);
+        }
+
+        const upd = updatedInfo(b.hvidate);
+        if (upd) {
+            const u = document.createElement('div');
+            u.className = `updated${upd.stale ? ' stale' : ''}`;
+            u.textContent = upd.stale ? `⚠ ${upd.text} — 오래된 정보일 수 있음` : upd.text;
+            card.appendChild(u);
+        }
 
         const contactInfo = document.createElement('div');
         contactInfo.className = 'contact-info';
         contactInfo.append('응급실 ');
-
-        if (dutyTel3) {
+        if (b.tel) {
             const telLink = document.createElement('a');
-            telLink.href = `tel:${dutyTel3}`;
-            telLink.textContent = dutyTel3;
+            telLink.href = `tel:${b.tel}`;
+            telLink.textContent = b.tel;
             contactInfo.appendChild(telLink);
         } else {
             contactInfo.append('전화번호 없음');
         }
+        card.appendChild(contactInfo);
 
-        card.append(name, bedInfo, contactInfo);
         hospitalContainer.appendChild(card);
     });
 }

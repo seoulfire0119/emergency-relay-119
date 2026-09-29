@@ -63,10 +63,31 @@
         .bed-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; }
         .bed-row .bn { font-weight: 600; font-size: 0.92rem; }
         .bed-row .bc { font-weight: 800; font-size: 1.05rem; }
-        .bed-row.b-green .bc { color: var(--success); }
-        .bed-row.b-yellow .bc { color: #c79100; }
-        .bed-row.b-red .bc { color: var(--danger); }
-        .bed-row.b-gray .bc { color: var(--muted); font-weight: 600; }
+        .bed-row.b-ok .bc { color: var(--success); }
+        .bed-row.b-low .bc { color: #c79100; }
+        .bed-row.b-full .bc { color: var(--danger); }
+        .bed-row.b-over .bc { color: #9b1d20; font-size: 0.95rem; }
+        .bed-row.b-unknown .bc { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+        /* 병상 상태 조각 — 과밀(음수)·만석·확인불가를 구분 */
+        .bt { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+        .bt-ok { background: #e3f5f1; color: #1f7a6f; }
+        .bt-low { background: #fdf3d6; color: #8a6500; }
+        .bt-full { background: #fbe9e5; color: #b3402a; }
+        .bt-over { background: #9b1d20; color: #fff; }
+        .bt-unknown { background: #eceff1; color: var(--muted); }
+        .emcls { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: #e7eef4; color: var(--secondary-color); vertical-align: middle; }
+        .res-line { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .res-chip { font-size: 0.7rem; padding: 1px 6px; border-radius: 8px; background: #eef2f5; color: #495057; }
+        .res-chip.ok { background: #e3f5f1; color: #1f7a6f; }
+        .res-chip.no { background: #fbe9e5; color: #b3402a; }
+        .upd { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+        .upd.stale { color: #b3402a; font-weight: 600; }
+        .hospital-pick { align-items: flex-start; gap: 8px; }
+        .pick-info { flex: 1; min-width: 0; }
+        .pick-name { font-weight: 600; }
+        .pick-meta { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+        .sort-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+        .sort-row select { width: auto; padding: 6px 10px; font-size: 0.85rem; }
         @media (max-width: 800px) { .vitals { grid-template-columns: repeat(2, 1fr); } }
         /* 실시간 응답 추적 */
         .track-item { padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid #ddd; background: #fff; }
@@ -74,6 +95,18 @@
         .track-item.asking { border-left-color: var(--secondary-color); background: #eef6fb; animation: pulse 1.2s infinite; }
         .track-item.accepted { border-left-color: var(--success); background: #eafaf6; }
         .track-item.rejected { border-left-color: var(--danger); background: #fdeee9; }
+        .track-item.timeout { border-left-color: #adb5bd; background: #f3f4f6; }
+        .badge.timeout { background: #868e96; }
+        .result-banner.cancelled { background: #868e96; color: #fff; }
+        .asking-bar { background: #eef6fb; border: 1px solid #cfe3f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+        .asking-bar .ref { margin: 4px 0 8px; }
+        #countdown.urgent { color: var(--danger); }
+        .aa-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+        .after-accept { background: #eafaf6; border-radius: 10px; padding: 10px 14px 14px; margin: -6px 0 12px; }
+        .aa-btn { display: inline-block; padding: 8px 12px; border-radius: 8px; background: #fff; border: 1px solid #bfe3db; color: var(--text-color); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .eta-row input { width: 80px; padding: 6px 8px; }
+        .track-summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.88rem; margin-bottom: 12px; }
+        .track-summary > span { flex: 1; min-width: 180px; }
         @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.65;} }
         .track-head { display: flex; justify-content: space-between; align-items: center; }
         .track-head b { font-size: 1rem; }
@@ -103,7 +136,7 @@
     <div class="layout">
         <!-- 좌: 요청 작성 -->
         <div id="compose-col">
-            <div class="panel">
+            <div class="panel" id="patient-panel">
                 <h2>1. 환자 평가</h2>
                 <div class="row">
                     <div>
@@ -202,13 +235,25 @@
 
             <div class="panel" style="margin-top:16px;">
                 <h2>2. 병원 순위 지정</h2>
-                <div class="ref">위 <b>지역(시도)</b>에 해당하는 실시간 응급실 병원이 표시됩니다. 누르면 순위에 추가됩니다. (가용 병상 많은 순 정렬)</div>
-                <div id="hospital-list" style="margin-top:10px;"></div>
+                <div class="ref">위 <b>지역(시도)</b>에 해당하는 실시간 응급실 병원이 표시됩니다. 누르면 순위에 추가됩니다.</div>
+                <div class="sort-row">
+                    <select id="sort-mode">
+                        <option value="beds">가용 병상 많은 순</option>
+                        <option value="distance">가까운 순</option>
+                    </select>
+                    <button id="geo-btn" class="small ghost">📍 내 위치로 거리 보기</button>
+                </div>
+                <div id="geo-note" class="ref"></div>
+                <div id="append-note" class="ref hidden" style="margin-top:8px; color:var(--secondary-color);">진행 중인 요청이 있습니다. 여기서 <b>「+ 요청에 추가」</b>를 누르면 그 병원이 요청 순위 맨 뒤에 붙습니다.</div>
+                <div id="hospital-list" style="margin-top:10px; max-height:520px; overflow-y:auto;"></div>
 
-                <h2 style="margin-top:18px;">지정된 순위</h2>
-                <div id="queue-list"><div class="ref">아직 선택된 병원이 없습니다.</div></div>
+                <div id="queue-section">
+                    <h2 style="margin-top:18px;">지정된 순위</h2>
+                    <div id="queue-list"><div class="ref">아직 선택된 병원이 없습니다.</div></div>
 
-                <button class="primary" id="send-btn" disabled>수용요청 전송</button>
+                    <button class="primary" id="send-btn" disabled>수용요청 전송</button>
+                    <div class="ref" style="margin-top:8px;">병원마다 응답 시간은 90초이며, 넘기면 자동으로 다음 순위에 요청합니다. 환자 정보는 24시간이 지나면 삭제됩니다.</div>
+                </div>
             </div>
         </div>
 
@@ -221,6 +266,6 @@
         </div>
     </div>
 
-    <script type="module" src="app/paramedic.js?v=3"></script>
+    <script type="module" src="app/paramedic.js?v=4"></script>
 </body>
 </html>
