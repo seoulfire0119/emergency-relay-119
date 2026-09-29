@@ -1,6 +1,6 @@
 // 실시간 응급실 병상 조회 (NEMC, Cloudflare Worker 프록시 경유)
 // 병상 현황(emergency.js)·구급대원·병원 화면이 모두 이 모듈을 쓴다.
-import { RESOURCE_FIELDS } from './bedstatus.js?v=1';
+import { RESOURCE_FIELDS, SEVERE_ITEMS, severeValue } from './bedstatus.js?v=2';
 
 const WORKER_BASE = 'https://emergency-bed-proxy.emergency-145fe.workers.dev';
 const LOCAL_WORKER_BASE = 'http://localhost:8787';
@@ -90,6 +90,33 @@ export async function fetchHospitalInfo({ sido = '' } = {}) {
         infoCache.set(sido, map);
     } catch (e) {
         console.info('[beds] 병원 좌표·종별 정보 없음 (Worker 업데이트 필요할 수 있음):', e.message);
+    }
+    return map;
+}
+
+// 중증질환자 수용가능정보. 실패하면 빈 Map (표시·필터만 빠진다)
+// → Map<hpid, { flags: { 1: true|false|null, … }, msgs: { 10: '9개월부터 가능', … } }>
+const severeCache = new Map();
+export async function fetchSevere({ sido = '' } = {}) {
+    if (severeCache.has(sido)) return severeCache.get(sido);
+    const map = new Map();
+    try {
+        const items = await fetchXmlItems(buildUrl('/api/emergency-severe', { sido, numOfRows: 1000 }));
+        items.forEach((item) => {
+            const id = tag(item, 'hpid');
+            if (!id) return;
+            const flags = {};
+            const msgs = {};
+            for (const [n] of SEVERE_ITEMS) {
+                flags[n] = severeValue(tag(item, `MKioskTy${n}`));
+                const m = tag(item, `MKioskTy${n}Msg`).trim();
+                if (m && m !== '.') msgs[n] = m;
+            }
+            map.set(id, { flags, msgs });
+        });
+        severeCache.set(sido, map);
+    } catch (e) {
+        console.info('[beds] 중증질환 수용가능정보 없음:', e.message);
     }
     return map;
 }

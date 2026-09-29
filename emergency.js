@@ -1,6 +1,6 @@
 // 실시간 응급실 병상 현황 (index.html)
-import { fetchBeds } from './app/beds.js?v=4';
-import { bedState, bedSortValue, resourceChips, updatedInfo } from './app/bedstatus.js?v=1';
+import { fetchBeds, fetchSevere } from './app/beds.js?v=5';
+import { bedState, bedSortValue, resourceChips, updatedInfo, severeDetails } from './app/bedstatus.js?v=2';
 
 const SEOUL = '서울특별시';
 
@@ -52,6 +52,9 @@ async function fetchHospitalData(sido = '') {
         } else {
             beds = await fetchBeds({ sido, numOfRows: 1000 });
         }
+        // 중증질환 수용가능정보 — 실패해도 병상 표시는 그대로
+        const severe = await fetchSevere({ sido });
+        beds.forEach((b) => { b.severe = severe.get(b.id) || null; });
 
         renderHospitals(beds);
 
@@ -114,6 +117,9 @@ function renderHospitals(beds) {
             });
             card.appendChild(res);
         }
+
+        const sev = severeDetails(b.severe);
+        if (sev) card.appendChild(sev);
 
         const upd = updatedInfo(b.hvidate);
         if (upd) {

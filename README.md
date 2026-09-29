@@ -94,7 +94,7 @@ app/firebase.js   Firebase 초기화(로컬은 에뮬레이터 자동연결, 익
 app/beds.js       Worker 프록시 호출 → 병상 배열 [{id(hpid), name, hvec(없으면 null), tel, hvidate, res}] + 병원 좌표·종별
 app/bedstatus.js  병상 해석 공용 규칙(과밀·만석·확인불가), 추가 자원, 갱신 시각, 거리·도착 예상
 app/hospitals.js  (구버전 데모 병원 시드 — 현재 릴레이는 실시간 병상 기반으로 동작, 미사용)
-worker/src/index.js  Cloudflare Worker(NEMC 프록시, CORS, 키 정규화)
+worker/src/index.js  Cloudflare Worker(NEMC 프록시: 병상 /api/emergency-beds · 기관목록 /api/emergency-list · 중증질환 /api/emergency-severe, CORS, 키 정규화)
 tools/aggregate-ems.js  bigdata-119 구급현황 집계 → app/ems-summary.json
 firestore.rules   프로토타입 보안 규칙
 firebase.json     hosting(public=".") + firestore + emulators 설정
@@ -104,7 +104,7 @@ firebase.json     hosting(public=".") + firestore + emulators 설정
 
 ES 모듈 캐시 불일치를 막기 위해 모듈 URL에 `?v=N` 쿼리를 붙인다.
 **모듈을 수정하면 해당 `?v=N`의 숫자를 올린다** (HTML `<script src>`와 내부 `import` 모두).
-현재 버전: `firebase.js` = `v=3`, `beds.js` = `v=4`, `bedstatus.js` = `v=1`, `paramedic.js` = `v=4`, `hospital.js` = `v=6`, `emergency.js` = `v=2`.
+현재 버전: `firebase.js` = `v=3`, `beds.js` = `v=5`, `bedstatus.js` = `v=2`, `paramedic.js` = `v=5`, `hospital.js` = `v=7`, `emergency.js` = `v=3`.
 
 ## 로컬 실행
 
@@ -142,8 +142,8 @@ cd worker; npx wrangler deploy                                    # Worker(프�
 - [x] Worker 재배포 (2026-09-30) — Origin 없는 요청 차단(403), `/api/emergency-list`(병원 좌표·종별)로 거리순 정렬·종별 표시.
 - [ ] `hospitalPins/_demo` 시연용 공통 코드는 운영 전 삭제, 병원별 코드 발급.
 - [ ] FCM 푸시(닫힌 앱 알람) — 서버(Cloud Functions, Blaze 요금제)가 있어야 보낼 수 있다. 지금은 열린 탭의 반복 알람 + 브라우저 알림.
-- [ ] 중증질환 수용가능정보(`getSrsillDissAceptncPosblInfoInqire`) — `MKioskTy*` 항목 뜻을 공식 활용가이드로 확인한 뒤 붙일 것(의료 표기라 추측 금지).
-      필요한 문서: 공공데이터포털 「국립중앙의료원_전국 응급의료기관 정보 조회 서비스」 활용가이드
-      (건강보험심사평가원 병원정보서비스 가이드는 다른 서비스라 해당 항목이 없음).
+- [x] 중증질환 수용가능정보(`getSrsillDissAceptncPosblInfoInqire`, Worker `/api/emergency-severe`) (2026-09-30)
+      — `MKioskTy1~28` 이름은 「NIA-IFT-OpenAPI활용가이드-01.국립중앙의료원-응급의료정보조회서비스_V13」 응답 명세 그대로
+      (`app/bedstatus.js` `SEVERE_ITEMS`). 값: Y=가능, 불가능=불가, 정보미제공. 구급대원 화면에서 항목을 고르면 가능 병원이 위로.
 - [ ] 무응답 자동 넘김은 구급대원 화면이 열려 있어야 동작한다(서버 없음). 병원 화면에도 남은 시간이 표시된다.
 - [ ] 2026-09-29 이전 요청 문서(`createdBy` 없음)는 새 규칙에서 읽을 수 없고 TTL 대상도 아니다 — 필요하면 콘솔에서 정리.

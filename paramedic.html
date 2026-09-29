@@ -87,7 +87,18 @@
         .pick-name { font-weight: 600; }
         .pick-meta { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
         .sort-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-        .sort-row select { width: auto; padding: 6px 10px; font-size: 0.85rem; }
+        .sort-row select { width: auto; max-width: 100%; padding: 6px 10px; font-size: 0.85rem; }
+        .sv-tag { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 1px 8px; border-radius: 10px; margin-top: 4px; }
+        .sv-tag.ok { background: #1f7a6f; color: #fff; }
+        .sv-tag.no { background: #fbe9e5; color: #b3402a; }
+        .sv-tag.unk { background: #eceff1; color: var(--muted); }
+        .hospital-pick.dim { opacity: 0.55; }
+        details.severe { margin-top: 4px; font-size: 0.75rem; }
+        details.severe summary { cursor: pointer; color: var(--secondary-color); font-weight: 600; }
+        .severe-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+        .sv-chip { font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; }
+        .sv-chip.ok { background: #e3f5f1; color: #1f7a6f; }
+        .sv-chip.no { background: #fbe9e5; color: #b3402a; }
         @media (max-width: 800px) { .vitals { grid-template-columns: repeat(2, 1fr); } }
         /* 실시간 응답 추적 */
         .track-item { padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid #ddd; background: #fff; }
@@ -243,6 +254,11 @@
                     </select>
                     <button id="geo-btn" class="small ghost">📍 내 위치로 거리 보기</button>
                 </div>
+                <div class="sort-row">
+                    <select id="severe-filter" title="고른 중증질환을 수용 가능한 병원을 위로 올립니다">
+                        <option value="">중증질환 수용 가능 병원 우선 — 선택 안 함</option>
+                    </select>
+                </div>
                 <div id="geo-note" class="ref"></div>
                 <div id="append-note" class="ref hidden" style="margin-top:8px; color:var(--secondary-color);">진행 중인 요청이 있습니다. 여기서 <b>「+ 요청에 추가」</b>를 누르면 그 병원이 요청 순위 맨 뒤에 붙습니다.</div>
                 <div id="hospital-list" style="margin-top:10px; max-height:520px; overflow-y:auto;"></div>
@@ -266,6 +282,6 @@
         </div>
     </div>
 
-    <script type="module" src="app/paramedic.js?v=4"></script>
+    <script type="module" src="app/paramedic.js?v=5"></script>
 </body>
 </html>

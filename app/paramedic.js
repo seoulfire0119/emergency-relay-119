@@ -1,8 +1,9 @@
 import { db, ensureSignedIn } from './firebase.js?v=3';
-import { fetchBeds, fetchHospitalInfo } from './beds.js?v=4';
+import { fetchBeds, fetchHospitalInfo, fetchSevere } from './beds.js?v=5';
 import {
     bedState, bedSortValue, resourceChips, updatedInfo, distanceKm, distanceText, etaMinutes,
-} from './bedstatus.js?v=1';
+    SEVERE_ITEMS, severeLabel, severeDetails,
+} from './bedstatus.js?v=2';
 import {
     collection,
     addDoc,
@@ -33,6 +34,7 @@ let beds = [];             // 병상 패널 표시용 (권역 필터 반영)
 let allBeds = [];          // 선택 시도 전체 병원 (순위 지정용)
 let myPos = null;          // { lat, lon } — 거리순 정렬용
 let sortMode = 'beds';     // 'beds' | 'distance'
+let severeFilter = 0;      // 0=안 씀, 1~28 = 이 중증질환 수용 가능 병원을 위로
 let activeId = null;       // 진행 중인 요청 id
 let current = null;        // 진행 중인 요청 문서(최신)
 let unsub = null;
@@ -67,17 +69,20 @@ async function loadBeds() {
     $('hospital-list').innerHTML = '<div class="ref">실시간 병원 목록을 불러오는 중...</div>';
     try {
         // 병원 순위 지정용: 항상 선택한 시도 전체 병원 (+ 좌표·종별, 없으면 빈 Map)
-        const [all, info] = await Promise.all([
+        const [all, info, severe] = await Promise.all([
             fetchBeds({ sido, numOfRows: 1000 }),
             fetchHospitalInfo({ sido }),
+            fetchSevere({ sido }),
         ]);
-        all.forEach((b) => Object.assign(b, info.get(b.id) || {}));
+        const enrich = (b) => Object.assign(b, info.get(b.id) || {}, { severe: severe.get(b.id) || null });
+        all.forEach(enrich);
         allBeds = all;
+        $('severe-filter').disabled = severe.size === 0;
         // 패널 표시용: 서울 권역 선택 시 해당 구만, 그 외엔 시도 전체
         if (sido === SEOUL && kwonyeok) {
             const gus = kwonyeokMap[kwonyeok] || [];
             const results = await Promise.all(gus.map((gu) => fetchBeds({ sido, gu, numOfRows: 100 })));
-            beds = results.flat().map((b) => Object.assign(b, info.get(b.id) || {}));
+            beds = results.flat().map(enrich);
         } else {
             beds = allBeds;
         }
@@ -175,6 +180,41 @@ $('sort-mode').onchange = () => {
 };
 $('geo-btn').onclick = locate;
 
+// ---------- 중증질환 필터 ----------
+// 고른 항목이 「가능」인 병원을 위로, 정보미제공은 가운데, 「불가」는 아래로 (숨기지는 않는다)
+(function initSevereFilter() {
+    const sel = $('severe-filter');
+    const groups = {};
+    SEVERE_ITEMS.forEach(([n, g, name]) => {
+        if (!groups[g]) {
+            groups[g] = document.createElement('optgroup');
+            groups[g].label = g;
+            sel.appendChild(groups[g]);
+        }
+        const o = document.createElement('option');
+        o.value = String(n);
+        o.textContent = `${g} · ${name}`;
+        groups[g].appendChild(o);
+    });
+    sel.onchange = () => { severeFilter = Number(sel.value) || 0; render(); };
+})();
+
+function severeRank(b) {
+    if (!severeFilter) return 0;
+    const v = b.severe?.flags?.[severeFilter];
+    return v === true ? 0 : v === false ? 2 : 1;
+}
+
+function severeTag(b) {
+    if (!severeFilter) return null;
+    const v = b.severe?.flags?.[severeFilter];
+    const span = document.createElement('span');
+    span.className = `sv-tag ${v === true ? 'ok' : v === false ? 'no' : 'unk'}`;
+    const msg = v === true && b.severe?.msgs?.[severeFilter] ? ` (${b.severe.msgs[severeFilter]})` : '';
+    span.textContent = `${v === true ? '✓ 가능' : v === false ? '✕ 불가' : '? 정보미제공'} · ${severeLabel(severeFilter)}${msg}`;
+    return span;
+}
+
 function locate() {
     if (!navigator.geolocation) { $('geo-note').textContent = '이 기기에서는 위치를 확인할 수 없습니다.'; return; }
     $('geo-note').textContent = '현재 위치 확인 중...';
@@ -218,9 +258,10 @@ function renderHospitalList() {
     ]);
     const remaining = allBeds.filter((b) => !taken.has(b.id));
     if (sortMode === 'distance' && myPos) {
-        remaining.sort((a, b) => (distOf(a) ?? Infinity) - (distOf(b) ?? Infinity));
+        remaining.sort((a, b) => severeRank(a) - severeRank(b) || (distOf(a) ?? Infinity) - (distOf(b) ?? Infinity));
     } else {
-        remaining.sort((a, b) => bedSortValue(b.hvec) - bedSortValue(a.hvec)); // 가용 병상 많은 순
+        // 가용 병상 많은 순 (중증질환 필터가 있으면 그 가능 여부가 먼저)
+        remaining.sort((a, b) => severeRank(a) - severeRank(b) || bedSortValue(b.hvec) - bedSortValue(a.hvec));
     }
     if (remaining.length === 0) {
         wrap.innerHTML = '<div class="ref">모든 병원이 순위에 추가되었습니다.</div>';
@@ -244,8 +285,13 @@ function renderHospitalList() {
         if (km != null) meta.append(` · 📍 ${distanceText(km)}`);
         if (b.tel) meta.append(` · ☎ ${b.tel}`);
         info.append(name, meta);
+        const sv = severeTag(b);
+        if (sv) info.appendChild(sv);
+        if (severeRank(b) === 2) div.classList.add('dim');
         const res = resourcesLine(b);
         if (res) info.appendChild(res);
+        const det = severeDetails(b.severe);
+        if (det) info.appendChild(det);
         const upd = updatedLine(b);
         if (upd) info.appendChild(upd);
         div.appendChild(info);

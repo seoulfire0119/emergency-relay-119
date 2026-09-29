@@ -6,6 +6,8 @@ const ROUTES = {
   '/api/emergency-beds': { op: 'getEmrrmRltmUsefulSckbdInfoInqire', sidoParam: 'STAGE1', guParam: 'STAGE2' },
   // 응급의료기관 목록 (좌표 wgs84Lat/Lon, 종별 dutyEmclsName) — 거리순 정렬용
   '/api/emergency-list': { op: 'getEgytListInfoInqire', sidoParam: 'Q0', guParam: 'Q1' },
+  // 중증질환자 수용가능정보 (MKioskTy1~28: 재관류중재술·뇌출혈수술·응급투석 등 Y/불가능/정보미제공)
+  '/api/emergency-severe': { op: 'getSrsillDissAceptncPosblInfoInqire', sidoParam: 'STAGE1', guParam: 'STAGE2' },
 };
 
 function textResponse(message, status, headers) {

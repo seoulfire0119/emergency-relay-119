@@ -1,6 +1,6 @@
 import { db, ensureSignedIn } from './firebase.js?v=3';
-import { fetchBeds } from './beds.js?v=4';
-import { bedState } from './bedstatus.js?v=1';
+import { fetchBeds } from './beds.js?v=5';
+import { bedState } from './bedstatus.js?v=2';
 import {
     collection,
     query,
