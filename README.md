@@ -139,10 +139,11 @@ cd worker; npx wrangler deploy                                    # Worker(프�
 - [ ] 24시간 자동 삭제를 서버에서 확실히 하려면 Blaze 요금제 전환 후 `firestore.indexes.json` 의
       `fieldOverrides` 에 `{ "collectionGroup": "requests", "fieldPath": "expiresAt", "ttl": true, "indexes": [] }` 추가.
       지금은 요청을 만든 기기가 화면을 다시 열 때만 지워진다.
-- [ ] **Worker 재배포 필요** (`cd worker; npx wrangler deploy`) — Origin 없는 요청 차단, `/api/emergency-list`(병원 좌표·종별) 추가.
-      재배포 전에는 거리순 정렬·종별 표시만 빠지고 나머지는 동작한다.
+- [x] Worker 재배포 (2026-09-30) — Origin 없는 요청 차단(403), `/api/emergency-list`(병원 좌표·종별)로 거리순 정렬·종별 표시.
 - [ ] `hospitalPins/_demo` 시연용 공통 코드는 운영 전 삭제, 병원별 코드 발급.
 - [ ] FCM 푸시(닫힌 앱 알람) — 서버(Cloud Functions, Blaze 요금제)가 있어야 보낼 수 있다. 지금은 열린 탭의 반복 알람 + 브라우저 알림.
 - [ ] 중증질환 수용가능정보(`getSrsillDissAceptncPosblInfoInqire`) — `MKioskTy*` 항목 뜻을 공식 활용가이드로 확인한 뒤 붙일 것(의료 표기라 추측 금지).
+      필요한 문서: 공공데이터포털 「국립중앙의료원_전국 응급의료기관 정보 조회 서비스」 활용가이드
+      (건강보험심사평가원 병원정보서비스 가이드는 다른 서비스라 해당 항목이 없음).
 - [ ] 무응답 자동 넘김은 구급대원 화면이 열려 있어야 동작한다(서버 없음). 병원 화면에도 남은 시간이 표시된다.
 - [ ] 2026-09-29 이전 요청 문서(`createdBy` 없음)는 새 규칙에서 읽을 수 없고 TTL 대상도 아니다 — 필요하면 콘솔에서 정리.
